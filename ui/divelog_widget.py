@@ -81,6 +81,9 @@ class DiveLogDialog(QDialog):
         self.resize(500, 450)
         self.media_folder = self.setup_media_folder()
         
+        # Initialize team_members before init_ui
+        self.team_members = []
+        
         self.init_ui()
         
         if dive_id:
@@ -264,6 +267,11 @@ class DiveLogDialog(QDialog):
         self.team_list.setMaximumHeight(100)
         team_group_layout.addWidget(self.team_list)
         
+        # Remove button for team members
+        self.remove_worker_btn = QPushButton(self.tr("Remove Selected"))
+        self.remove_worker_btn.clicked.connect(self.remove_team_member)
+        team_group_layout.addWidget(self.remove_worker_btn)
+        
         team_group.setLayout(team_group_layout)
         team_layout.addWidget(team_group)
         
@@ -308,9 +316,6 @@ class DiveLogDialog(QDialog):
         layout.addWidget(buttons)
         
         self.setLayout(layout)
-        
-        # Store team data
-        self.team_members = []
     
     def generate_dive_number(self):
         """Generate next dive number"""
@@ -403,6 +408,16 @@ class DiveLogDialog(QDialog):
         
         # Reset combo
         self.worker_combo.setCurrentIndex(0)
+    
+    def remove_team_member(self):
+        """Remove selected team member from list"""
+        current_row = self.team_list.currentRow()
+        if current_row >= 0:
+            # Remove from list widget
+            self.team_list.takeItem(current_row)
+            # Remove from team_members list
+            if current_row < len(self.team_members):
+                self.team_members.pop(current_row)
     
     def load_dive_data(self):
         """Load existing dive data"""
@@ -762,7 +777,9 @@ class DiveLogDialog(QDialog):
                 )
                 
                 # Add new team members
-                for member in self.team_members:
+                print(f"DEBUG: Saving {len(self.team_members)} team members for dive {dive_id}")
+                for i, member in enumerate(self.team_members):
+                    print(f"DEBUG: Team member {i+1}: worker_id={member['worker_id']}, role={member['role']}")
                     self.db_manager.execute_update(
                         """INSERT INTO dive_team (dive_id, worker_id, role)
                            VALUES (?, ?, ?)""",
