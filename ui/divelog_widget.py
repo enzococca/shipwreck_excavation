@@ -421,17 +421,22 @@ class DiveLogDialog(QDialog):
     
     def load_dive_data(self):
         """Load existing dive data"""
-        print(f"DEBUG DiveLogDialog: Loading dive ID {self.dive_id}")
-        # Query specific fields to ensure we know the order
-        dive = self.db_manager.execute_query(
-            """SELECT id, site_id, dive_number, dive_date, dive_start, dive_end,
-                      max_depth, avg_depth, water_temp, visibility, current_strength,
-                      weather_conditions, dive_objectives, work_completed, findings_summary,
-                      equipment_used, notes
-               FROM dive_logs WHERE id = ?""",
-            (self.dive_id,)
-        )
-        print(f"DEBUG DiveLogDialog: Query returned {len(dive) if dive else 0} results")
+        try:
+            print(f"DEBUG DiveLogDialog: Loading dive ID {self.dive_id}")
+            # Query specific fields to ensure we know the order
+            dive = self.db_manager.execute_query(
+                """SELECT id, site_id, dive_number, dive_date, dive_start, dive_end,
+                          max_depth, avg_depth, water_temp, visibility, current_strength,
+                          weather_conditions, dive_objectives, work_completed, findings_summary,
+                          equipment_used, notes
+                   FROM dive_logs WHERE id = ?""",
+                (self.dive_id,)
+            )
+            print(f"DEBUG DiveLogDialog: Query returned {len(dive) if dive else 0} results")
+        except Exception as e:
+            print(f"ERROR DiveLogDialog: Failed to load dive data: {e}")
+            QMessageBox.warning(self, self.tr("Error"), self.tr(f"Failed to load dive data: {str(e)}"))
+            return
         
         if dive and len(dive) > 0:
             data = dive[0]
@@ -623,20 +628,37 @@ class DiveLogDialog(QDialog):
     
     def setup_media_folder(self):
         """Setup media storage folder"""
-        # Get database folder
-        db_path = self.db_manager.db_path
-        if db_path:
-            media_folder = os.path.join(os.path.dirname(db_path), "media")
-        else:
-            media_folder = os.path.expanduser("~/Documents/ShipwreckMedia")
-        
-        # Create folder structure if it doesn't exist
-        for folder in [media_folder, os.path.join(media_folder, 'photos'), 
-                      os.path.join(media_folder, 'thumbnails')]:
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-                
-        return media_folder
+        try:
+            # Try to get configured media path from settings
+            media_path = self.db_manager.get_setting('media_base_path') if hasattr(self.db_manager, 'get_setting') else None
+            
+            if media_path and os.path.exists(media_path):
+                # Use configured path
+                if media_path.endswith('/media') or media_path.endswith('\\media'):
+                    media_folder = media_path
+                else:
+                    media_folder = os.path.join(media_path, "media")
+            elif self.db_manager.db_path:
+                # Fallback to db_path
+                media_folder = os.path.join(os.path.dirname(self.db_manager.db_path), "media")
+            else:
+                # Last resort - use default folder
+                media_folder = os.path.expanduser("~/Documents/ShipwreckMedia")
+            
+            # Create folder structure if it doesn't exist
+            for folder in [media_folder, os.path.join(media_folder, 'photos'), 
+                          os.path.join(media_folder, 'thumbnails')]:
+                if not os.path.exists(folder):
+                    try:
+                        os.makedirs(folder)
+                    except Exception as e:
+                        print(f"Warning: Could not create media folder {folder}: {e}")
+                    
+            return media_folder
+        except Exception as e:
+            print(f"Warning: Error setting up media folder: {e}")
+            # Return a safe default
+            return os.path.expanduser("~/Documents/ShipwreckMedia")
     
     def handle_dropped_files(self, files):
         """Handle dropped image files"""
