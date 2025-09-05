@@ -381,7 +381,11 @@ class DiveLogDialog(QDialog):
     def add_team_member(self):
         """Add team member to list"""
         worker_id = self.worker_combo.currentData()
+        current_index = self.worker_combo.currentIndex()
+        print(f"DEBUG add_team_member: current_index={current_index}, worker_id={worker_id}, worker_name={self.worker_combo.currentText()}")
+        
         if not worker_id:
+            print(f"DEBUG: No worker selected (worker_id is None)")
             return
         
         worker_name = self.worker_combo.currentText()
@@ -401,10 +405,12 @@ class DiveLogDialog(QDialog):
         item_text = f"{worker_name} - {role}"
         self.team_list.addItem(item_text)
         
+        print(f"DEBUG: Adding team member - worker_id={worker_id}, worker_name={worker_name}, role={role}")
         self.team_members.append({
             'worker_id': worker_id,
             'role': role
         })
+        print(f"DEBUG: Total team members now: {len(self.team_members)}")
         
         # Reset combo
         self.worker_combo.setCurrentIndex(0)
@@ -539,10 +545,14 @@ class DiveLogDialog(QDialog):
                 (self.dive_id,)
             )
             
+            print(f"DEBUG: Loading {len(team_members) if team_members else 0} team members for dive {self.dive_id}")
+            
             if team_members:
-                for member in team_members:
+                for i, member in enumerate(team_members):
                     worker_id = member['worker_id'] if isinstance(member, dict) else member[2]
                     role = member['role'] if isinstance(member, dict) else member[3]
+                    
+                    print(f"DEBUG: Loading team member {i+1} - worker_id={worker_id}, role={role}")
                     
                     # Get worker name
                     workers = self.db_manager.execute_query(
@@ -554,10 +564,13 @@ class DiveLogDialog(QDialog):
                         worker_name = workers[0]['full_name'] if isinstance(workers[0], dict) else workers[0][0]
                         item_text = f"{worker_name} - {role}"
                         self.team_list.addItem(item_text)
+                        print(f"DEBUG: Added to list: {item_text}")
                         self.team_members.append({
                             'worker_id': worker_id,
                             'role': role
                         })
+            
+            print(f"DEBUG: Total team members loaded: {len(self.team_members)}")
     
     def load_media_previews(self):
         """Load media previews for the dive log"""
