@@ -1,0 +1,15 @@
+# -*- coding: utf-8 -*-
+"""
+Shipwreck Excavation Management Plugin
+Archaeological excavation management system for underwater shipwrecks
+"""
+__author__ = 'Shipwreck Excavation Team'
+__date__ = '2025-01-17'
+__copyright__ = '(C) 2025, Shipwreck Excavation Team'
+
+def classFactory(iface):
+    try:
+        from shipwreck_excavation.shipwreck_excavation import ShipwreckExcavation
+    except ImportError:
+        from .shipwreck_excavation import ShipwreckExcavation
+    return ShipwreckExcavation(iface)

@@ -1,0 +1,19 @@
+[general]
+name=Shipwreck Excavation Management
+qgisMinimumVersion=3.16
+description=Archaeological excavation management system for underwater shipwrecks with SpatiaLite database
+version=1.0.0
+author=Shipwreck Excavation Team
+email=contact@shipwreck-excavation.org
+
+about=Complete management system for underwater archaeological excavations including finds management, media handling, dive logs, worker management, and cost tracking. Features Telegram bot integration for field data collection with offline sync capabilities. Bilingual support (English/Indonesian).
+
+tracker=https://github.com/shipwreck-excavation/issues
+repository=https://github.com/shipwreck-excavation/repo
+tags=archaeology,excavation,spatialite,underwater,shipwreck,heritage,telegram
+homepage=https://shipwreck-excavation.org
+category=Database
+icon=icons/shipwreck.png
+experimental=False
+deprecated=False
+hasProcessingProvider=no

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ShipwreckMainDialogBase</class>
+ <widget class="QDialog" name="ShipwreckMainDialogBase">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1000</width>
+    <height>700</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Shipwreck Excavation Management</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>../icons/shipwreck.png</normaloff>../icons/shipwreck.png
+   </iconset>
+  </property>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
