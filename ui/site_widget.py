@@ -149,14 +149,55 @@ class SiteDialog(QDialog):
             if isinstance(data, dict):
                 self.site_code_edit.setText(data.get('site_code', ''))
                 self.site_name_edit.setText(data.get('site_name', ''))
-                # Add other fields...
+                
+                # Discovery date
+                if data.get('discovery_date'):
+                    from qgis.PyQt.QtCore import QDate
+                    date_str = data.get('discovery_date')
+                    date = QDate.fromString(date_str, 'yyyy-MM-dd')
+                    if date.isValid():
+                        self.discovery_date.setDate(date)
+                
+                # Period
+                self.period_from_edit.setText(data.get('period_from', ''))
+                self.period_to_edit.setText(data.get('period_to', ''))
+                
+                # Vessel type
+                vessel_type = data.get('vessel_type', '')
+                index = self.vessel_type_combo.findText(vessel_type)
+                if index >= 0:
+                    self.vessel_type_combo.setCurrentIndex(index)
+                else:
+                    self.vessel_type_combo.setEditText(vessel_type)
+                
+                # Dimensions
+                if data.get('estimated_length'):
+                    self.length_spin.setValue(float(data.get('estimated_length')))
+                if data.get('estimated_width'):
+                    self.width_spin.setValue(float(data.get('estimated_width')))
+                
+                # Depth
+                if data.get('depth_min'):
+                    self.depth_min_spin.setValue(float(data.get('depth_min')))
+                if data.get('depth_max'):
+                    self.depth_max_spin.setValue(float(data.get('depth_max')))
+                
+                # Description
+                self.description_edit.setText(data.get('description', ''))
+                
+                # Status
+                status = data.get('status', 'active')
+                index = self.status_combo.findText(status)
+                if index >= 0:
+                    self.status_combo.setCurrentIndex(index)
             else:
-                # Tuple access by index
+                # Tuple access by index - for backward compatibility
                 self.site_code_edit.setText(data[1] if len(data) > 1 else '')
                 self.site_name_edit.setText(data[2] if len(data) > 2 else '')
     
     def get_site_data(self):
         """Get site data from form"""
+        # Now save to individual fields since we added them to the database
         return {
             'site_code': self.site_code_edit.text(),
             'site_name': self.site_name_edit.text(),
@@ -405,20 +446,20 @@ class SiteWidget(QWidget):
         if dlg.exec_():
             data = dlg.get_site_data()
             
-            # Update site
-            set_clause = ', '.join([f"{k} = ?" for k in data.keys()])
-            values = list(data.values()) + [site_id]
-            
-            if self.db_manager.execute_update(
-                f"UPDATE sites SET {set_clause} WHERE id = ?",
-                values
-            ):
+            # Update site using Supabase method
+            if self.db_manager.update_site(site_id, data):
                 self.refresh_data()
                 self.sites_updated.emit()  # Notify other widgets
                 QMessageBox.information(
                     self,
                     self.tr("Success"),
                     self.tr("Site updated successfully")
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    self.tr("Error"),
+                    self.tr("Failed to update site")
                 )
     
     def delete_site(self):

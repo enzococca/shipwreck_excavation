@@ -246,10 +246,28 @@ class SupabaseDatabaseManager(QObject):
             data.pop('longitude', None)
             data.pop('id', None)
             
+            QgsMessageLog.logMessage(f"DEBUG update_site: Updating site {site_id} with data: {data}", 
+                                   "SupabaseDB", Qgis.Info)
+            
             response = self.supabase.table('sites').update(data).eq('id', site_id).execute()
-            return bool(response.data)
+            QgsMessageLog.logMessage(f"DEBUG update_site: Response data: {response.data}", 
+                                   "SupabaseDB", Qgis.Info)
+            
+            if response.data:
+                QgsMessageLog.logMessage(f"DEBUG update_site: Update successful", 
+                                       "SupabaseDB", Qgis.Success)
+                return True
+            else:
+                QgsMessageLog.logMessage(f"DEBUG update_site: Update failed - no data returned", 
+                                       "SupabaseDB", Qgis.Warning)
+                return False
         except Exception as e:
-            print(f"Error updating site: {e}")
+            QgsMessageLog.logMessage(f"Error updating site {site_id}: {e}", 
+                                   "SupabaseDB", Qgis.Critical)
+            import traceback
+            error_details = traceback.format_exc()
+            QgsMessageLog.logMessage(f"Traceback: {error_details}", 
+                                   "SupabaseDB", Qgis.Critical)
             return False
     
     def delete_site(self, site_id: int) -> bool:

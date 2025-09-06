@@ -43,6 +43,8 @@ class MediaListWidget(QWidget):
         # Media list
         self.media_list = QListWidget()
         self.media_list.setMaximumHeight(150)
+        # Make list items clickable to view media
+        self.media_list.itemDoubleClicked.connect(self.view_media_item)
         layout.addWidget(self.media_list)
         
         # Count label
@@ -156,3 +158,99 @@ class MediaListWidget(QWidget):
     def get_media_count(self):
         """Get the number of media items"""
         return self.media_list.count()
+    
+    def view_media_item(self, item):
+        """View the selected media item"""
+        from qgis.PyQt.QtCore import Qt
+        media_data = item.data(Qt.UserRole)
+        if not media_data:
+            return
+        
+        file_path = media_data.get('file_path')
+        if not file_path:
+            QMessageBox.warning(self, self.tr("Error"), 
+                              self.tr("No file path for this media"))
+            return
+        
+        # Get full file path
+        full_path = None
+        if os.path.isabs(file_path) and os.path.exists(file_path):
+            full_path = file_path
+        else:
+            # Try with configured media base path
+            media_base = self.db_manager.get_setting('media_base_path')
+            if media_base:
+                if media_base.endswith('/media') or media_base.endswith('\\media'):
+                    base_path = os.path.dirname(media_base)
+                else:
+                    base_path = media_base
+                
+                normalized_file_path = file_path.replace('/', os.sep).replace('\\', os.sep)
+                full_path = os.path.join(base_path, normalized_file_path)
+        
+        if not full_path or not os.path.exists(full_path):
+            QMessageBox.warning(self, self.tr("Error"), 
+                              self.tr(f"File not found: {file_path}"))
+            return
+        
+        media_type = media_data.get('media_type', '').lower()
+        
+        try:
+            if media_type == 'photo':
+                # Show photo in a dialog
+                from qgis.PyQt.QtWidgets import QDialog, QVBoxLayout, QLabel
+                from qgis.PyQt.QtCore import Qt
+                from qgis.PyQt.QtGui import QPixmap
+                
+                dialog = QDialog(self)
+                dialog.setWindowTitle(media_data.get('file_name', 'Image'))
+                dialog.setModal(True)
+                
+                layout = QVBoxLayout()
+                label = QLabel()
+                
+                pixmap = QPixmap(full_path)
+                if not pixmap.isNull():
+                    # Scale to reasonable size while maintaining aspect ratio
+                    max_size = 800
+                    if pixmap.width() > max_size or pixmap.height() > max_size:
+                        pixmap = pixmap.scaled(max_size, max_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    label.setPixmap(pixmap)
+                else:
+                    label.setText(self.tr("Could not load image"))
+                
+                layout.addWidget(label)
+                dialog.setLayout(layout)
+                dialog.exec_()
+                
+            elif media_type == 'video':
+                # Try to open with system default video player
+                from qgis.PyQt.QtCore import QUrl
+                from qgis.PyQt.QtGui import QDesktopServices
+                QDesktopServices.openUrl(QUrl.fromLocalFile(full_path))
+                
+            elif media_type == '3d':
+                # Try to open 3D viewer if available
+                try:
+                    from .model_viewer_widget import ModelViewerWidget
+                    viewer = ModelViewerWidget(self)
+                    viewer.load_model(full_path)
+                    viewer.show()
+                except ImportError:
+                    # Fallback to system default
+                    from qgis.PyQt.QtCore import QUrl
+                    from qgis.PyQt.QtGui import QDesktopServices
+                    QDesktopServices.openUrl(QUrl.fromLocalFile(full_path))
+            else:
+                # Open with system default application
+                from qgis.PyQt.QtCore import QUrl
+                from qgis.PyQt.QtGui import QDesktopServices
+                QDesktopServices.openUrl(QUrl.fromLocalFile(full_path))
+                
+        except Exception as e:
+            QMessageBox.warning(self, self.tr("Error"), 
+                              self.tr(f"Error opening media: {str(e)}"))
+    
+    def tr(self, message):
+        from qgis.PyQt.QtCore import QCoreApplication
+        return QCoreApplication.translate('MediaListWidget', message)
