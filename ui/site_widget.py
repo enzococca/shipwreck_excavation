@@ -158,29 +158,46 @@ class SiteDialog(QDialog):
                     if date.isValid():
                         self.discovery_date.setDate(date)
                 
-                # Period
+                # Period - now individual fields exist
                 self.period_from_edit.setText(data.get('period_from', ''))
                 self.period_to_edit.setText(data.get('period_to', ''))
                 
                 # Vessel type
                 vessel_type = data.get('vessel_type', '')
-                index = self.vessel_type_combo.findText(vessel_type)
-                if index >= 0:
-                    self.vessel_type_combo.setCurrentIndex(index)
+                if vessel_type and vessel_type != 'None':
+                    index = self.vessel_type_combo.findText(vessel_type)
+                    if index >= 0:
+                        self.vessel_type_combo.setCurrentIndex(index)
+                    else:
+                        self.vessel_type_combo.setEditText(vessel_type)
                 else:
-                    self.vessel_type_combo.setEditText(vessel_type)
+                    self.vessel_type_combo.setCurrentIndex(0)  # Empty selection
                 
                 # Dimensions
-                if data.get('estimated_length'):
-                    self.length_spin.setValue(float(data.get('estimated_length')))
-                if data.get('estimated_width'):
-                    self.width_spin.setValue(float(data.get('estimated_width')))
+                if data.get('estimated_length') is not None:
+                    try:
+                        self.length_spin.setValue(float(data.get('estimated_length')))
+                    except (ValueError, TypeError):
+                        self.length_spin.setValue(0.0)
+                        
+                if data.get('estimated_width') is not None:
+                    try:
+                        self.width_spin.setValue(float(data.get('estimated_width')))
+                    except (ValueError, TypeError):
+                        self.width_spin.setValue(0.0)
                 
                 # Depth
-                if data.get('depth_min'):
-                    self.depth_min_spin.setValue(float(data.get('depth_min')))
-                if data.get('depth_max'):
-                    self.depth_max_spin.setValue(float(data.get('depth_max')))
+                if data.get('depth_min') is not None:
+                    try:
+                        self.depth_min_spin.setValue(float(data.get('depth_min')))
+                    except (ValueError, TypeError):
+                        self.depth_min_spin.setValue(0.0)
+                        
+                if data.get('depth_max') is not None:
+                    try:
+                        self.depth_max_spin.setValue(float(data.get('depth_max')))
+                    except (ValueError, TypeError):
+                        self.depth_max_spin.setValue(0.0)
                 
                 # Description
                 self.description_edit.setText(data.get('description', ''))
@@ -282,11 +299,12 @@ class SiteWidget(QWidget):
         
         # Sites table
         self.sites_table = QTableWidget()
-        self.sites_table.setColumnCount(9)  # Added Media column
+        self.sites_table.setColumnCount(11)  # Added dimensions columns
         self.sites_table.setHorizontalHeaderLabels([
             self.tr("ID"), self.tr("Site Code"), self.tr("Site Name"),
-            self.tr("Vessel Type"), self.tr("Period"), self.tr("Depth Range"),
-            self.tr("Media"), self.tr("Status"), self.tr("Discovery Date")
+            self.tr("Vessel Type"), self.tr("Period"), self.tr("Dimensions (LxW)"),
+            self.tr("Depth Range"), self.tr("Media"), self.tr("Status"), 
+            self.tr("Discovery Date")
         ])
         
         # Hide ID column
@@ -318,14 +336,12 @@ class SiteWidget(QWidget):
         """Refresh sites table"""
         sites = self.db_manager.execute_query(
             """SELECT s.id, s.site_code, s.site_name, s.vessel_type, 
-                      s.period_from || ' - ' || s.period_to as period,
-                      s.depth_min || ' - ' || s.depth_max || ' m' as depth_range,
-                      COUNT(DISTINCT mr.media_id) as media_count,
+                      s.period_from, s.period_to,
+                      s.estimated_length, s.estimated_width,
+                      s.depth_min, s.depth_max,
+                      s.media_count,
                       s.status, s.discovery_date
                FROM sites s
-               LEFT JOIN media_relations mr ON mr.related_id = s.id AND mr.related_type = 'site'
-               GROUP BY s.id, s.site_code, s.site_name, s.vessel_type, s.period_from, 
-                        s.period_to, s.depth_min, s.depth_max, s.status, s.discovery_date
                ORDER BY s.site_code"""
         )
         
@@ -337,25 +353,57 @@ class SiteWidget(QWidget):
             for row, site in enumerate(sites):
                 # Handle both dict and tuple
                 if isinstance(site, dict):
+                    # Format period
+                    period_from = site.get('period_from', '')
+                    period_to = site.get('period_to', '')
+                    if period_from and period_to:
+                        period = f"{period_from} - {period_to}"
+                    elif period_from:
+                        period = period_from
+                    elif period_to:
+                        period = period_to
+                    else:
+                        period = ''
+                    
+                    # Format dimensions
+                    length = site.get('estimated_length')
+                    width = site.get('estimated_width')
+                    if length and width:
+                        dimensions = f"{length}x{width}m"
+                    elif length:
+                        dimensions = f"{length}m (L)"
+                    elif width:
+                        dimensions = f"{width}m (W)"
+                    else:
+                        dimensions = ''
+                    
+                    # Format depth range
+                    depth_min = site.get('depth_min')
+                    depth_max = site.get('depth_max')
+                    if depth_min and depth_max:
+                        depth_range = f"{depth_min}-{depth_max}m"
+                    elif depth_min:
+                        depth_range = f"{depth_min}m"
+                    elif depth_max:
+                        depth_range = f"max {depth_max}m"
+                    else:
+                        depth_range = ''
+                    
                     values = [
                         str(site.get('id', '')),
                         site.get('site_code', ''),
                         site.get('site_name', ''),
                         site.get('vessel_type', ''),
-                        site.get('period', ''),
-                        site.get('depth_range', ''),
+                        period,
+                        dimensions,
+                        depth_range,
                         str(site.get('media_count', 0)),
                         site.get('status', ''),
                         site.get('discovery_date', '')
                     ]
                 else:
-                    # For tuple, media_count is at index 6
-                    values = []
-                    for i, v in enumerate(site):
-                        if i == 6:  # media_count column
-                            values.append(str(v) if v else '0')
-                        else:
-                            values.append(str(v) if v else '')
+                    # For tuple - shouldn't happen with Supabase
+                    values = [str(v) if v else '' for v in site]
                 
                 for col, value in enumerate(values):
                     self.sites_table.setItem(row, col, QTableWidgetItem(value))
