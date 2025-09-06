@@ -108,10 +108,15 @@ class ShipwreckMainDialog(QDialog):
         self.workers_widget = WorkersWidget(self.iface, self.db_manager, self)
         self.costs_widget = CostsWidget(self.iface, self.db_manager, self)
         
+        # Create statistics widget
+        from ui.statistics_widget import StatisticsWidget
+        self.statistics_widget = StatisticsWidget(self.db_manager, parent=self)
+        
         # Add tabs
         self.tab_widget.addTab(self.site_widget, self.tr("Sites"))
         self.tab_widget.addTab(self.finds_widget, self.tr("Finds"))
         self.tab_widget.addTab(self.media_widget, self.tr("Media"))
+        self.tab_widget.addTab(self.statistics_widget, self.tr("Statistics"))
         self.tab_widget.addTab(self.divelog_widget, self.tr("Dive Logs"))
         self.tab_widget.addTab(self.workers_widget, self.tr("Workers"))
         self.tab_widget.addTab(self.costs_widget, self.tr("Costs"))
@@ -154,10 +159,13 @@ class ShipwreckMainDialog(QDialog):
     def on_sites_updated(self):
         """Handle site updates - refresh site lists in all widgets"""
         # Refresh sites in all widgets that have load_sites method
-        widgets = [self.finds_widget, self.media_widget, self.divelog_widget, self.workers_widget, self.costs_widget]
+        widgets = [self.finds_widget, self.media_widget, self.divelog_widget, 
+                  self.workers_widget, self.costs_widget, self.statistics_widget]
         for widget in widgets:
             if hasattr(widget, 'load_sites'):
                 widget.load_sites()
+            elif hasattr(widget, 'refresh_data'):
+                widget.refresh_data()
     
     def load_settings(self):
         """Load dialog settings"""
