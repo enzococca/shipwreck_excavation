@@ -280,20 +280,17 @@ class FindsWidget(QWidget):
         for row in range(self.finds_table.rowCount()):
             show_row = True
             
-            # Text search
+            # Text search - search across ALL fields
             if search_text:
-                find_number_item = self.finds_table.item(row, 1)  # Find Number column
-                description_item = self.finds_table.item(row, 11)  # Description column (new index)
-                section_item = self.finds_table.item(row, 6)  # Section column
-                storage_item = self.finds_table.item(row, 8)  # Storage column
+                row_text = ""
+                # Concatenate all column texts (skip ID column at index 0)
+                for col in range(1, self.finds_table.columnCount()):
+                    item = self.finds_table.item(row, col)
+                    if item:
+                        row_text += item.text().lower() + " "
                 
-                find_number = find_number_item.text().lower() if find_number_item else ""
-                description = description_item.text().lower() if description_item else ""
-                section = section_item.text().lower() if section_item else ""
-                storage = storage_item.text().lower() if storage_item else ""
-                
-                if search_text not in find_number and search_text not in description \
-                   and search_text not in section and search_text not in storage:
+                # Check if search text is in any field
+                if search_text not in row_text:
                     show_row = False
             
             # Material filter

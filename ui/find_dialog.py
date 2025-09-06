@@ -644,7 +644,7 @@ class FindDialog(QDialog):
                         'file_path': media_data['file_path'],
                         'file_size': media_data['file_size'],
                         'description': f"Photo for find {self.find_number_edit.text()}",
-                        'capture_date': datetime.now()
+                        'capture_date': datetime.now().isoformat()  # Convert to ISO string for JSON serialization
                     }
                     
                     self.db_manager.add_media(media_record, 'find', find_id)
