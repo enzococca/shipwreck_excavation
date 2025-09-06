@@ -339,6 +339,7 @@ class MediaWidget(QWidget):
             # Get file info
             filename = os.path.basename(file_path)
             file_size = os.path.getsize(file_path)
+            # Convert extension to lowercase for comparison (but keep original case for file operations)
             file_ext = os.path.splitext(filename)[1].lower()
             
             # Skip only MTL files (they're copied with OBJ files)
@@ -347,6 +348,7 @@ class MediaWidget(QWidget):
                 return True  # Return True to not show error, but don't add to database
             
             # Determine media type
+            # All extensions are checked in lowercase
             if file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif']:
                 media_type = 'photo'
                 subfolder = 'photos'

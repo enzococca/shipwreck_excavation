@@ -83,28 +83,32 @@ class FindsWidget(QWidget):
         self.search_edit.textChanged.connect(self.filter_finds)
         toolbar.addWidget(self.search_edit)
         
-        # Material type filter
+        # Material type filter - updated with all material types
         toolbar.addWidget(QLabel(self.tr("Material:")))
         self.material_combo = QComboBox()
         self.material_combo.addItem(self.tr("All"))
-        self.material_combo.addItems([
-            self.tr("Ceramic"), self.tr("Metal"), self.tr("Wood"),
-            self.tr("Glass"), self.tr("Stone"), self.tr("Bone"),
-            self.tr("Textile"), self.tr("Other")
-        ])
+        # Add all material types from database
+        material_types = [
+            "Black/Red Ware", "Stoneware", "Ceramic", "Porcelain", "Celadon", 
+            "Martaban", "Mercury Jar", "Metal", "Wood", "Glass", "Stone Tool", 
+            "Bone", "Shell/Pearl", "Organic (Nut/Seed)", "Organic Material", 
+            "Fiber/Rope", "Resin", "Sediment", "Clay", "Horn", "Weight", "Other"
+        ]
+        self.material_combo.addItems(material_types)
         self.material_combo.currentTextChanged.connect(self.filter_finds)
         toolbar.addWidget(self.material_combo)
         
         layout.addWidget(toolbar)
         
-        # Finds table
+        # Finds table - updated with new columns
         self.finds_table = QTableWidget()
-        self.finds_table.setColumnCount(10)
+        self.finds_table.setColumnCount(15)  # Increased column count
         self.finds_table.setHorizontalHeaderLabels([
-            self.tr("ID"), self.tr("Find Number"), self.tr("Material"),
-            self.tr("Object Type"), self.tr("Description"), self.tr("Condition"),
-            self.tr("Find Date"), self.tr("Depth (m)"), self.tr("Media"),
-            self.tr("Coordinates")
+            self.tr("ID"), self.tr("Find Number"), self.tr("Inv No"), 
+            self.tr("Year"), self.tr("Material"), self.tr("Object Type"), 
+            self.tr("Section"), self.tr("SU"), self.tr("Storage"),
+            self.tr("Quantity"), self.tr("Dimensions"), self.tr("Description"), 
+            self.tr("Condition"), self.tr("Depth (m)"), self.tr("Media")
         ])
         
         # Hide ID column
@@ -113,7 +117,7 @@ class FindsWidget(QWidget):
         # Set column widths
         header = self.finds_table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.Stretch)  # Description column
+        header.setSectionResizeMode(11, QHeaderView.Stretch)  # Description column (now at index 11)
         
         # Enable sorting
         self.finds_table.setSortingEnabled(True)
@@ -179,67 +183,90 @@ class FindsWidget(QWidget):
             
             for row, find in enumerate(finds):
                 # Handle both dict and tuple access
-                def get_value(find, key, index=None):
+                def get_value(find, key, default=''):
                     if isinstance(find, dict):
-                        return find.get(key)
-                    elif index is not None:
-                        return find[index] if len(find) > index else None
-                    return None
+                        return find.get(key, default)
+                    return default
                 
-                # Map column names to indices for tuple access
-                # Based on the SELECT query in get_finds
-                col_map = {
-                    'id': 0, 'site_id': 1, 'area_id': 2, 'find_number': 3,
-                    'material_type': 4, 'object_type': 5, 'description': 6,
-                    'condition': 7, 'find_date': 8, 'depth': 9,
-                    'geom_wkt': -2, 'media_count': -1  # Last two columns
-                }
-                
-                # ID
-                id_val = get_value(find, 'id', col_map.get('id'))
-                self.finds_table.setItem(row, 0, QTableWidgetItem(str(id_val)))
+                col = 0
+                # ID (hidden)
+                self.finds_table.setItem(row, col, QTableWidgetItem(str(get_value(find, 'id'))))
+                col += 1
                 
                 # Find Number
-                find_num = get_value(find, 'find_number', col_map.get('find_number'))
-                self.finds_table.setItem(row, 1, QTableWidgetItem(find_num or ''))
+                self.finds_table.setItem(row, col, QTableWidgetItem(str(get_value(find, 'find_number'))))
+                col += 1
+                
+                # Inv No (new)
+                inv_no = get_value(find, 'inv_no', '')
+                self.finds_table.setItem(row, col, QTableWidgetItem(str(inv_no) if inv_no else ''))
+                col += 1
+                
+                # Year (new)
+                year = get_value(find, 'year', '')
+                self.finds_table.setItem(row, col, QTableWidgetItem(str(year) if year else ''))
+                col += 1
                 
                 # Material
-                material = get_value(find, 'material_type', col_map.get('material_type'))
-                self.finds_table.setItem(row, 2, QTableWidgetItem(material or ''))
+                self.finds_table.setItem(row, col, QTableWidgetItem(str(get_value(find, 'material_type'))))
+                col += 1
                 
                 # Object Type
-                obj_type = get_value(find, 'object_type', col_map.get('object_type'))
-                self.finds_table.setItem(row, 3, QTableWidgetItem(obj_type or ''))
+                self.finds_table.setItem(row, col, QTableWidgetItem(str(get_value(find, 'object_type'))))
+                col += 1
+                
+                # Section (new)
+                self.finds_table.setItem(row, col, QTableWidgetItem(str(get_value(find, 'section'))))
+                col += 1
+                
+                # SU (new)
+                self.finds_table.setItem(row, col, QTableWidgetItem(str(get_value(find, 'su'))))
+                col += 1
+                
+                # Storage Location (new)
+                self.finds_table.setItem(row, col, QTableWidgetItem(str(get_value(find, 'storage_location'))))
+                col += 1
+                
+                # Quantity (new)
+                quantity = get_value(find, 'quantity', '')
+                self.finds_table.setItem(row, col, QTableWidgetItem(str(quantity) if quantity else ''))
+                col += 1
+                
+                # Dimensions (new)
+                self.finds_table.setItem(row, col, QTableWidgetItem(str(get_value(find, 'dimensions'))))
+                col += 1
                 
                 # Description
-                desc = get_value(find, 'description', col_map.get('description'))
-                self.finds_table.setItem(row, 4, QTableWidgetItem(desc or ''))
+                desc = get_value(find, 'description', '')
+                # Truncate long descriptions for table display
+                if len(desc) > 100:
+                    desc = desc[:100] + '...'
+                self.finds_table.setItem(row, col, QTableWidgetItem(desc))
+                col += 1
                 
                 # Condition
-                condition = get_value(find, 'condition', col_map.get('condition'))
-                self.finds_table.setItem(row, 5, QTableWidgetItem(condition or ''))
-                
-                # Find Date
-                find_date = get_value(find, 'find_date', col_map.get('find_date'))
-                if find_date:
-                    self.finds_table.setItem(row, 6, QTableWidgetItem(str(find_date)))
+                self.finds_table.setItem(row, col, QTableWidgetItem(str(get_value(find, 'condition'))))
+                col += 1
                 
                 # Depth
-                depth = get_value(find, 'depth', col_map.get('depth'))
+                depth = get_value(find, 'depth')
                 if depth:
-                    self.finds_table.setItem(row, 7, QTableWidgetItem(f"{float(depth):.2f}"))
+                    try:
+                        self.finds_table.setItem(row, col, QTableWidgetItem(f"{float(depth):.2f}"))
+                    except:
+                        self.finds_table.setItem(row, col, QTableWidgetItem(str(depth)))
+                else:
+                    self.finds_table.setItem(row, col, QTableWidgetItem(''))
+                col += 1
                 
                 # Media count
-                media_count = get_value(find, 'media_count', col_map.get('media_count'))
+                media_count = get_value(find, 'media_count', 0)
                 if media_count and int(media_count) > 0:
                     item = QTableWidgetItem(f"📎 {media_count}")
                     item.setTextAlignment(Qt.AlignCenter)
-                    self.finds_table.setItem(row, 8, item)
-                
-                # Coordinates
-                geom_wkt = get_value(find, 'geom_wkt', col_map.get('geom_wkt'))
-                if geom_wkt:
-                    self.finds_table.setItem(row, 9, QTableWidgetItem("📍"))
+                    self.finds_table.setItem(row, col, item)
+                else:
+                    self.finds_table.setItem(row, col, QTableWidgetItem(''))
         
         # Re-apply filter after refreshing data
         self.filter_finds()
@@ -255,18 +282,23 @@ class FindsWidget(QWidget):
             
             # Text search
             if search_text:
-                find_number_item = self.finds_table.item(row, 1)
-                description_item = self.finds_table.item(row, 4)
+                find_number_item = self.finds_table.item(row, 1)  # Find Number column
+                description_item = self.finds_table.item(row, 11)  # Description column (new index)
+                section_item = self.finds_table.item(row, 6)  # Section column
+                storage_item = self.finds_table.item(row, 8)  # Storage column
                 
                 find_number = find_number_item.text().lower() if find_number_item else ""
                 description = description_item.text().lower() if description_item else ""
+                section = section_item.text().lower() if section_item else ""
+                storage = storage_item.text().lower() if storage_item else ""
                 
-                if search_text not in find_number and search_text not in description:
+                if search_text not in find_number and search_text not in description \
+                   and search_text not in section and search_text not in storage:
                     show_row = False
             
             # Material filter
             if material_filter != self.tr("All"):
-                material_item = self.finds_table.item(row, 2)
+                material_item = self.finds_table.item(row, 4)  # Material column (new index)
                 material = material_item.text() if material_item else ""
                 if material != material_filter:
                     show_row = False

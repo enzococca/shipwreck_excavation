@@ -39,7 +39,7 @@ class MediaDropListWidget(QListWidget):
             # Check if any of the URLs are image files
             for url in event.mimeData().urls():
                 file_path = url.toLocalFile()
-                if file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
+                if file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif')):
                     event.acceptProposedAction()
                     return
         event.ignore()
@@ -55,7 +55,7 @@ class MediaDropListWidget(QListWidget):
             files = []
             for url in event.mimeData().urls():
                 file_path = url.toLocalFile()
-                if os.path.isfile(file_path) and file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
+                if os.path.isfile(file_path) and file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif')):
                     files.append(file_path)
             
             if files:

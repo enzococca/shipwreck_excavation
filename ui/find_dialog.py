@@ -5,7 +5,7 @@ from qgis.PyQt.QtCore import Qt, QDate, QSize, pyqtSignal
 from qgis.core import QgsMessageLog, Qgis
 from qgis.PyQt.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout,
                                 QFormLayout, QLineEdit, QTextEdit,
-                                QComboBox, QDateEdit, QDoubleSpinBox,
+                                QComboBox, QDateEdit, QDoubleSpinBox, QSpinBox,
                                 QDialogButtonBox, QLabel, QMessageBox,
                                 QGroupBox, QListWidget, QListWidgetItem)
 from qgis.PyQt.QtGui import QPixmap, QIcon, QDragEnterEvent, QDropEvent
@@ -27,7 +27,7 @@ class MediaDropListWidget(QListWidget):
             # Check if any of the URLs are image files
             for url in event.mimeData().urls():
                 file_path = url.toLocalFile()
-                if file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
+                if file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif')):
                     event.acceptProposedAction()
                     return
         event.ignore()
@@ -43,7 +43,7 @@ class MediaDropListWidget(QListWidget):
             files = []
             for url in event.mimeData().urls():
                 file_path = url.toLocalFile()
-                if os.path.isfile(file_path) and file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
+                if os.path.isfile(file_path) and file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif')):
                     files.append(file_path)
             
             if files:
@@ -85,11 +85,27 @@ class FindDialog(QDialog):
         self.find_number_edit = QLineEdit()
         form_layout.addRow(self.tr("Find Number:"), self.find_number_edit)
         
-        # Material type
+        # Inventory number (new field)
+        self.inv_no_spin = QSpinBox()
+        self.inv_no_spin.setMinimum(0)
+        self.inv_no_spin.setMaximum(9999)
+        form_layout.addRow(self.tr("Inventory No:"), self.inv_no_spin)
+        
+        # Year (new field)
+        self.year_spin = QSpinBox()
+        self.year_spin.setMinimum(2000)
+        self.year_spin.setMaximum(2100)
+        self.year_spin.setValue(QDate.currentDate().year())
+        form_layout.addRow(self.tr("Year:"), self.year_spin)
+        
+        # Material type - updated with all types from database
         self.material_combo = QComboBox()
+        self.material_combo.setEditable(True)  # Allow custom entries
         self.material_combo.addItems([
-            "Ceramic", "Metal", "Wood", "Glass", 
-            "Stone", "Bone", "Textile", "Other"
+            "Black/Red Ware", "Stoneware", "Ceramic", "Porcelain", "Celadon", "Martaban",
+            "Metal", "Wood", "Glass", "Stone Tool", "Bone", "Shell/Pearl",
+            "Organic (Nut/Seed)", "Organic Material", "Fiber/Rope", "Resin",
+            "Sediment", "Clay", "Horn", "Weight", "Mercury Jar", "Other"
         ])
         form_layout.addRow(self.tr("Material Type:"), self.material_combo)
         
@@ -116,6 +132,16 @@ class FindDialog(QDialog):
         self.find_date.setDate(QDate.currentDate())
         form_layout.addRow(self.tr("Find Date:"), self.find_date)
         
+        # Section (new field)
+        self.section_edit = QLineEdit()
+        self.section_edit.setPlaceholderText("e.g., F8N-F10N, EAST PORTION")
+        form_layout.addRow(self.tr("Section:"), self.section_edit)
+        
+        # SU - Stratigraphic Unit (new field)
+        self.su_edit = QLineEdit()
+        self.su_edit.setPlaceholderText("e.g., 2, BAG 1")
+        form_layout.addRow(self.tr("SU (Stratigraphic Unit):"), self.su_edit)
+        
         # Depth
         self.depth_spin = QDoubleSpinBox()
         self.depth_spin.setMaximum(999.99)
@@ -128,11 +154,16 @@ class FindDialog(QDialog):
         form_layout.addRow(self.tr("Period:"), self.period_edit)
         
         # Quantity
-        self.quantity_spin = QDoubleSpinBox()
+        self.quantity_spin = QSpinBox()
         self.quantity_spin.setMinimum(1)
+        self.quantity_spin.setMaximum(9999)
         self.quantity_spin.setValue(1)
-        self.quantity_spin.setDecimals(0)
         form_layout.addRow(self.tr("Quantity:"), self.quantity_spin)
+        
+        # Dimensions (new field)
+        self.dimensions_edit = QLineEdit()
+        self.dimensions_edit.setPlaceholderText("e.g., thickness 0.5, 10x5x2 cm")
+        form_layout.addRow(self.tr("Dimensions:"), self.dimensions_edit)
         
         # Context
         self.context_edit = QTextEdit()
@@ -217,11 +248,12 @@ class FindDialog(QDialog):
     def load_find_data(self):
         """Load existing find data"""
         QgsMessageLog.logMessage(f"Loading find ID {self.find_id}", "Find Dialog", Qgis.Info)
-        # Query specific fields to ensure we know the order
+        # Query specific fields to ensure we know the order - including new fields
         find = self.db_manager.execute_query(
             """SELECT id, site_id, find_number, material_type, object_type, 
                       description, condition, find_date, depth, period,
-                      quantity, context_description, finder_name, storage_location, notes
+                      quantity, context_description, finder_name, storage_location, notes,
+                      inv_no, year, section, su, dimensions
                FROM finds WHERE id = ?""",
             (self.find_id,)
         )
@@ -234,7 +266,7 @@ class FindDialog(QDialog):
                 if isinstance(data, dict):
                     return data.get(field_name)
                 else:
-                    # Map tuple indices to field names
+                    # Map tuple indices to field names - including new fields
                     field_map = {
                         'find_number': 2,
                         'material_type': 3,
@@ -248,7 +280,12 @@ class FindDialog(QDialog):
                         'context_description': 11,
                         'finder_name': 12,
                         'storage_location': 13,
-                        'notes': 14
+                        'notes': 14,
+                        'inv_no': 15,
+                        'year': 16,
+                        'section': 17,
+                        'su': 18,
+                        'dimensions': 19
                     }
                     if field_name in field_map:
                         idx = field_map[field_name]
@@ -289,7 +326,7 @@ class FindDialog(QDialog):
                 self.period_edit.setText(str(get_value(data, 'period')))
             
             if get_value(data, 'quantity'):
-                self.quantity_spin.setValue(float(get_value(data, 'quantity')))
+                self.quantity_spin.setValue(int(get_value(data, 'quantity')))
             
             if get_value(data, 'context_description'):
                 self.context_edit.setText(str(get_value(data, 'context_description')))
@@ -299,6 +336,22 @@ class FindDialog(QDialog):
             
             if get_value(data, 'storage_location'):
                 self.storage_edit.setText(str(get_value(data, 'storage_location')))
+            
+            # Load new fields
+            if get_value(data, 'inv_no'):
+                self.inv_no_spin.setValue(int(get_value(data, 'inv_no')))
+            
+            if get_value(data, 'year'):
+                self.year_spin.setValue(int(get_value(data, 'year')))
+            
+            if get_value(data, 'section'):
+                self.section_edit.setText(str(get_value(data, 'section')))
+            
+            if get_value(data, 'su'):
+                self.su_edit.setText(str(get_value(data, 'su')))
+            
+            if get_value(data, 'dimensions'):
+                self.dimensions_edit.setText(str(get_value(data, 'dimensions')))
     
     def load_media_previews(self):
         """Load media previews for the find"""
@@ -541,7 +594,13 @@ class FindDialog(QDialog):
             'quantity': int(self.quantity_spin.value()),
             'context_description': self.context_edit.toPlainText(),
             'finder_name': self.finder_edit.text(),
-            'storage_location': self.storage_edit.text()
+            'storage_location': self.storage_edit.text(),
+            # New fields
+            'inv_no': self.inv_no_spin.value() if self.inv_no_spin.value() > 0 else None,
+            'year': self.year_spin.value(),
+            'section': self.section_edit.text() if self.section_edit.text() else None,
+            'su': self.su_edit.text() if self.su_edit.text() else None,
+            'dimensions': self.dimensions_edit.text() if self.dimensions_edit.text() else None
         }
     
     def accept(self):
